@@ -1,3 +1,4 @@
+
 import { Midi } from '@tonejs/midi';
 import Polygon from './classes/Polygon'
 
@@ -24,7 +25,6 @@ const PolygonsNo5 = (p) => {
     p.preload = () => {
         p.song = p.loadSound(audio, p.loadMidi);
         p.song.onended(() => p.songHasFinished = true);
-
     };
 
     /** 
@@ -32,6 +32,7 @@ const PolygonsNo5 = (p) => {
      * This runs once after preload
      */
     p.setup = () => {
+        // Use WebGL for better performance
         p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
         document.getElementById("loader").classList.add("loading--complete");
         p.noFill();
@@ -45,11 +46,13 @@ const PolygonsNo5 = (p) => {
      * This runs continuously after setup
      */
     p.draw = () => {
-        p.background(0);
+        // Clear the canvas with transparency to let CSS background show through
+        p.clear();
+        
         if(p.audioLoaded && p.song.isPlaying() || p.songHasFinished){
-            
+            // Position for drawing polygons
             p.translate(-p.width/2, -p.height/2);
-
+            
             if (p.polygons.length > 0) {
                 p.polygons.forEach(polygon => {
                     polygon.update();
@@ -111,11 +114,11 @@ const PolygonsNo5 = (p) => {
         const durationMs = (durationTicks / PPQ) * (60000 / p.bpm);
         
         // Create a new polygon at a random position
-        const x = p.random(p.width / 8, p.width - p.width / 8);
-        const y = p.random(p.height / 8, p.height - p.height / 8);
+        const x = p.random(p.width / 6, p.width - p.width / 6);
+        const y = p.random(p.height / 6, p.height - p.height / 6);
         
         // Add new polygon to the collection with the duration
-        p.polygons.push(new Polygon(p, x, y, durationMs));
+        p.polygons.push(new Polygon(p, x, y, durationMs, currentCue % 5 === 0));
     };
 
     /** 

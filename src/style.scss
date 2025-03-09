@@ -67,3 +67,43 @@ body {
         visibility: visible;
     }
 }
+
+#gradient-background {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background:
+        /* Strong magenta glow in bottom right area */
+        radial-gradient(ellipse at 70% 85%,
+            rgba(255, 0, 255, 0.6) 0%,
+            rgba(255, 0, 128, 0.4) 15%,
+            rgba(128, 0, 128, 0.1) 30%,
+            transparent 50%),
+        /* Secondary subtle glow in mid-left */
+        radial-gradient(circle at 25% 55%,
+            rgba(100, 0, 200, 0.3) 0%,
+            rgba(100, 0, 200, 0.1) 20%,
+            transparent 40%),
+        /* Main gradient - darkened */
+        linear-gradient(to bottom,
+            #030013 0%,
+            /* Darker blue at top */
+            #050220 20%,
+            /* Darker indigo blue */
+            #0e0430 40%,
+            /* Darker blue-purple */
+            #220543 60%,
+            /* Darker purple */
+            #4d0043 75%,
+            /* Darker magenta */
+            #1a0425 90%,
+            /* Darker purple near bottom */
+            #040112 100%
+            /* Almost black at bottom */
+        );
+    /* Static enhancement for glow effect without animation */
+    box-shadow: inset 0 0 150px rgba(128, 0, 255, 0.15);
+}

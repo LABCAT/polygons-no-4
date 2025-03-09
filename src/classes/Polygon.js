@@ -1,23 +1,17 @@
 import ColorGenerator from '@lib/p5.colorGenerator'
 export default class Polygon {
-  constructor(p, x, y, durationMs = 0) {
+  constructor(p, x, y, durationMs = 0, isLast) {
     this.p = p;
     this.x = x;
     this.y = y;
     this.size = 0;
+    this.isLast = isLast;
     this.colourGenerator = new ColorGenerator(p, 'bright');
     this.colours = this.colourGenerator.getOpacityVariations(4);
    
     // Select a random shape
     const shapes = ['equilateral', 'rect', 'pentagon', 'hexagon', 'octagon'];
     this.shape = shapes[Math.floor(Math.random() * shapes.length)];
-    this.numRings = 8;
-   
-    // Pre-calculate the color indices to avoid repetitive calculations
-    this.colorIndices = [];
-    for (let i = 0; i < this.numRings; i++) {
-      this.colorIndices[i] = Math.min(3, Math.floor((i / this.numRings) * 4));
-    }
     
     // Calculate the exact number of repeats needed
     this.activeRepeats = [];
@@ -41,7 +35,8 @@ export default class Polygon {
   }
  
   update() {
-    this.size += 16;
+    const sizeAdjuster = this.isLast ? 16 : 8;
+    this.size += sizeAdjuster;
    
     // Check for new repeats to activate
     const now = Date.now();
@@ -61,7 +56,7 @@ export default class Polygon {
     this.pendingRepeats = stillPending;
    
     // Update existing active repeats
-    this.activeRepeats = this.activeRepeats.map(size => size + 16);
+    this.activeRepeats = this.activeRepeats.map(size => size + sizeAdjuster / 2);
    
     // Add newly activated repeats
     this.activeRepeats = [...this.activeRepeats, ...activatedRepeats];
@@ -76,17 +71,17 @@ export default class Polygon {
   drawShape(size) {
     if (size <= 0) return;
    
-    // Draw 7 rings with varying opacity (from -3 to +3)
+    // Draw 7 shapes with varying opacity (from -3 to +3)
     for (let i = -3; i <= 3; i++) {
-    const ringSize = size + (i * 12);
-    if (ringSize <= 0) continue;
-    
-    // Calculate color index based on distance from center (0)
-    // This creates a gradient effect with stronger color in the middle
-    const colorIndex = 3 - Math.abs(i);
-    
-    this.p.stroke(this.colours[colorIndex]);
-    this.p[this.shape](this.x, this.y, ringSize, ringSize);
+        const shapeSize = size + (i * 16);
+        if (shapeSize <= 0) continue;
+        
+        // Calculate color index based on distance from center (0)
+        // This creates a gradient effect with stronger color in the middle
+        const colorIndex = 3 - Math.abs(i);
+        
+        this.p.stroke(this.colours[colorIndex]);
+        this.p[this.shape](this.x, this.y, shapeSize, shapeSize);
     }
   }
 }
