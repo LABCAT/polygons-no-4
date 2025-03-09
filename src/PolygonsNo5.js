@@ -1,12 +1,11 @@
 import { Midi } from '@tonejs/midi';
-
-import ColorGenerator from '@lib/p5.colorGenerator'
+import Polygon from './classes/Polygon'
 
 /** 
  * Add your ogg and mid files in the audio director and update these file names
  */
-const audio = new URL("@audio/your-audio-file.ogg", import.meta.url).href;
-const midi = new URL("@audio/your-midi-file.mid", import.meta.url).href;
+const audio = new URL("@audio/polygons-no-4.ogg", import.meta.url).href;
+const midi = new URL("@audio/polygons-no-4.mid", import.meta.url).href;
 
 
 const PolygonsNo5 = (p) => {
@@ -14,6 +13,7 @@ const PolygonsNo5 = (p) => {
      * Core audio properties
      */
     p.song = null;
+    p.bpm = 104;
     p.audioLoaded = false;
     p.songHasFinished = false;
 
@@ -22,8 +22,8 @@ const PolygonsNo5 = (p) => {
      * This runs first, before setup()
      */
     p.preload = () => {
-        // p.song = p.loadSound(audio, p.loadMidi);
-        // p.song.onended(() => p.songHasFinished = true);
+        p.song = p.loadSound(audio, p.loadMidi);
+        p.song.onended(() => p.songHasFinished = true);
 
     };
 
@@ -32,15 +32,12 @@ const PolygonsNo5 = (p) => {
      * This runs once after preload
      */
     p.setup = () => {
-        p.createCanvas(p.windowWidth, p.windowHeight);
+        p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
         document.getElementById("loader").classList.add("loading--complete");
         p.noFill();
+        p.colorMode(p.HSB);
         p.rectMode(p.CENTER);
         p.strokeWeight(4);
-        p.colourGenerator = new ColorGenerator(p);
-        p.colours = p.colourGenerator.getOpacityVariations(4);
-        console.log(p.colours);
-        
     };
 
     /** 
@@ -49,18 +46,16 @@ const PolygonsNo5 = (p) => {
      */
     p.draw = () => {
         p.background(0);
-        for (let i = -3; i <= 3; i++) {
-            const colourPointer = 3 - Math.abs(i);
-            p.stroke(p.colours[colourPointer]);
-            p.rect(
-                p.width / 2,
-                p.height / 2,
-                400 + (i * 8),
-                400 + (i * 8)
-            )
-        }
         if(p.audioLoaded && p.song.isPlaying() || p.songHasFinished){
             
+            p.translate(-p.width/2, -p.height/2);
+
+            if (p.polygons.length > 0) {
+                p.polygons.forEach(polygon => {
+                    polygon.update();
+                    polygon.draw();
+                });
+            } 
         }
     }
 
@@ -70,30 +65,9 @@ const PolygonsNo5 = (p) => {
      */
     p.loadMidi = () => {
         Midi.fromUrl(midi).then((result) => {
-            /** 
-             * Log when MIDI is loaded
-             */
             console.log('MIDI loaded:', result);
-            /** 
-             * Example: Schedule different tracks for different visual elements
-             */
-            const track1 = result.tracks[0].notes;
-            /** 
-             * Schedule your cue sets
-             * You can add multiple tracks by:
-             * 1. Getting notes from different MIDI tracks (e.g., tracks[1], tracks[2])
-             * 2. Creating corresponding execute functions (e.g., executeTrack2, executeTrack3)
-             * 3. Adding new scheduleCueSet calls for each track
-             * Example:
-             * const track2 = result.tracks[1].notes;
-             * const track3 = result.tracks[2].notes;
-             * p.scheduleCueSet(track2, 'executeTrack2');
-             * p.scheduleCueSet(track3, 'executeTrack3');
-             */
+            const track1 = result.tracks[3].notes; // Combinator - Loading Screen
             p.scheduleCueSet(track1, 'executeTrack1');
-            /** 
-             * Update UI elements when loaded
-             */
             document.getElementById("loader").classList.add("loading--complete");
             document.getElementById('play-icon').classList.add('fade-in');
             p.audioLoaded = true;
@@ -121,17 +95,28 @@ const PolygonsNo5 = (p) => {
         }
     }
 
-    /** 
-     * Example track execution functions
-     * Add your animation triggers here
-     */
+    p.polygons = [];
+
     p.executeTrack1 = (note) => {
-        /** 
-         * Add animation code triggered by track 1
-         * Example: trigger based on note properties
-         */
-        const { midi, velocity, currentCue } = note;
-    }
+        const { currentCue, durationTicks } = note;
+        
+        // Reset polygons when currentCue % 5 === 1
+        if (currentCue % 5 === 1) {
+            p.polygons = []; // Clear all polygons
+        }
+        
+        // Convert durationTicks to milliseconds using BPM
+        // For two bars (122880 ticks) at 104 BPM:
+        const PPQ = 15360; // Ticks per quarter note based on your data
+        const durationMs = (durationTicks / PPQ) * (60000 / p.bpm);
+        
+        // Create a new polygon at a random position
+        const x = p.random(p.width / 8, p.width - p.width / 8);
+        const y = p.random(p.height / 8, p.height - p.height / 8);
+        
+        // Add new polygon to the collection with the duration
+        p.polygons.push(new Polygon(p, x, y, durationMs));
+    };
 
     /** 
      * Handle mouse/touch interaction
