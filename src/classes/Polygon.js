@@ -1,71 +1,46 @@
 import ColorGenerator from '@lib/p5.colorGenerator'
+
 export default class Polygon {
-  constructor(p, x, y, durationMs = 0, isLast) {
+  constructor(p, x, y, durationMs = 0, isLast = false) {
     this.p = p;
     this.x = x;
     this.y = y;
     this.size = 0;
     this.isLast = isLast;
+    
+    // Calculate nested count based on duration and BPM
+    if (durationMs > 0 && this.p.bpm) {
+      const barDuration = (60000 / this.p.bpm) * 4; // 4 quarter notes per bar
+      const repeatsPerBar = 2;
+      const repeatInterval = barDuration / repeatsPerBar;
+      
+      // Calculate total repeats based on duration
+      this.nestedCount = Math.max(1, Math.floor(durationMs / repeatInterval));
+    } else {
+      // Default to 3 if no duration or BPM specified
+      this.nestedCount = 3;
+    }
     this.colourGenerator = new ColorGenerator(p, 'bright');
     this.colours = this.colourGenerator.getOpacityVariations(4);
    
     // Select a random shape
     const shapes = ['equilateral', 'rect', 'pentagon', 'hexagon', 'octagon'];
     this.shape = shapes[Math.floor(Math.random() * shapes.length)];
-    
-    // Calculate the exact number of repeats needed
-    this.activeRepeats = [];
-   
-    // Only schedule repeats if there's actually duration
-    if (durationMs > 0) {
-      const barDuration = (60000 / this.p.bpm) * 4; // 4 quarter notes per bar
-      const repeatsPerBar = 2;
-      const repeatInterval = barDuration / repeatsPerBar;
-     
-      // Calculate total repeats - subtract 1 to account for original polygon
-      const totalRepeats = Math.max(0, Math.floor(durationMs / repeatInterval) - 1);
-     
-      // Generate schedule for repeats
-      this.pendingRepeats = Array.from({length: totalRepeats}, (_, i) =>
-        Date.now() + ((i + 1) * repeatInterval)
-      );
-    } else {
-      this.pendingRepeats = [];
-    }
   }
  
   update() {
-    const sizeAdjuster = this.isLast ? 16 : 8;
+    const sizeAdjuster = this.isLast ? 12 : 6;
     this.size += sizeAdjuster;
-   
-    // Check for new repeats to activate
-    const now = Date.now();
-    const activatedRepeats = [];
-    const stillPending = [];
-   
-    // Check each pending repeat
-    this.pendingRepeats.forEach(time => {
-      if (now >= time) {
-        activatedRepeats.push(0); // New repeat with size 0
-      } else {
-        stillPending.push(time);
-      }
-    });
-   
-    // Update state
-    this.pendingRepeats = stillPending;
-   
-    // Update existing active repeats
-    this.activeRepeats = this.activeRepeats.map(size => size + sizeAdjuster / 2);
-   
-    // Add newly activated repeats
-    this.activeRepeats = [...this.activeRepeats, ...activatedRepeats];
   }
  
   draw() {
-    // Draw original and repeats
+    // Draw original shape
     this.drawShape(this.size);
-    this.activeRepeats.forEach(size => this.drawShape(size));
+    
+    // Draw nested shapes
+    for (let index = 1; index <= this.nestedCount; index++) {
+      this.drawShape(this.size / index);
+    }
   }
  
   drawShape(size) {
@@ -75,11 +50,11 @@ export default class Polygon {
     for (let i = -3; i <= 3; i++) {
         const shapeSize = size + (i * 16);
         if (shapeSize <= 0) continue;
-        
+       
         // Calculate color index based on distance from center (0)
         // This creates a gradient effect with stronger color in the middle
         const colorIndex = 3 - Math.abs(i);
-        
+       
         this.p.stroke(this.colours[colorIndex]);
         this.p[this.shape](this.x, this.y, shapeSize, shapeSize);
     }

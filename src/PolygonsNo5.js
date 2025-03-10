@@ -46,11 +46,8 @@ const PolygonsNo5 = (p) => {
      * This runs continuously after setup
      */
     p.draw = () => {
-        // Clear the canvas with transparency to let CSS background show through
-        p.clear();
-        
-        if(p.audioLoaded && p.song.isPlaying() || p.songHasFinished){
-            // Position for drawing polygons
+        if(p.audioLoaded && p.song.isPlaying()){
+            p.clear();
             p.translate(-p.width/2, -p.height/2);
             
             if (p.polygons.length > 0) {
@@ -100,25 +97,111 @@ const PolygonsNo5 = (p) => {
 
     p.polygons = [];
 
+    // Add these variables at the class level
+    p.currentCycleShapes = [];
+    p.positionPattern = null;
+    p.positionOrder = [0, 1, 2, 3, 4];
+
     p.executeTrack1 = (note) => {
         const { currentCue, durationTicks } = note;
         
-        // Reset polygons when currentCue % 5 === 1
         if (currentCue % 5 === 1) {
-            p.polygons = []; // Clear all polygons
+            p.polygons = [];
+            
+            // Shuffle shapes for this cycle
+            const shapes = ['equilateral', 'rect', 'pentagon', 'hexagon', 'octagon'];
+            p.currentCycleShapes = [...shapes].sort(() => p.random(-1, 1));
+            
+            // Choose a position pattern for this cycle
+            p.selectPositionPattern();
         }
         
-        // Convert durationTicks to milliseconds using BPM
-        // For two bars (122880 ticks) at 104 BPM:
-        const PPQ = 15360; // Ticks per quarter note based on your data
+        const PPQ = 15360;
         const durationMs = (durationTicks / PPQ) * (60000 / p.bpm);
         
-        // Create a new polygon at a random position
-        const x = p.random(p.width / 6, p.width - p.width / 6);
-        const y = p.random(p.height / 6, p.height - p.height / 6);
+        // Get sequential index in this set of 5
+        const index = (currentCue - 1) % 5;
+        const position = p.getPosition(index);
         
-        // Add new polygon to the collection with the duration
-        p.polygons.push(new Polygon(p, x, y, durationMs, currentCue % 5 === 0));
+        const newPolygon = new Polygon(p, position.x, position.y, durationMs, currentCue % 5 === 0);
+        
+        // Assign shape from the cycle - we still want to use sequential shapes
+        // even though positions are randomized
+        newPolygon.shape = p.currentCycleShapes[index];
+        
+        p.polygons.push(newPolygon);
+    };
+
+    p.selectPositionPattern = () => {
+        const patterns = ['grid', 'diagonal', 'wave', 'corners'];
+        p.positionPattern = patterns[Math.floor(p.random() * patterns.length)];
+        
+        // Generate random order for positions
+        p.positionOrder = [0, 1, 2, 3, 4].sort(() => p.random(-1, 1));
+    };
+
+    p.getPosition = (index) => {
+        // Use the randomized position order
+        const posIndex = p.positionOrder[index];
+        
+        const w = p.width;
+        const h = p.height;
+        let x, y;
+        
+        switch (p.positionPattern) {
+            case 'circle':
+                // Positions in a circle around center
+                const angle = (posIndex / 5) * p.TWO_PI;
+                const radius = Math.min(w, h) * 0.3;
+                x = w/2 + radius * Math.cos(angle);
+                y = h/2 + radius * Math.sin(angle);
+                break;
+                
+            case 'grid':
+                // 3x2 grid with centered second row
+                if (posIndex < 3) {
+                    // First row - 3 positions
+                    x = w * (0.25 + posIndex * 0.25);
+                    y = h * 0.33;
+                } else {
+                    // Second row - 2 positions centered
+                    x = w * (0.33 + (posIndex - 3) * 0.33);
+                    y = h * 0.67;
+                }
+                break;
+                
+            case 'diagonal':
+                // Diagonal from top-left to bottom-right
+                const t = posIndex / 4;
+                x = w * 0.1 + (w * 0.8 * t);
+                y = h * 0.1 + (h * 0.8 * t);
+                break;
+                
+            case 'wave':
+                // Horizontal wave pattern
+                x = (posIndex + 0.5) * (w / 5);
+                const amplitude = h * 0.25;
+                y = h/2 + amplitude * Math.sin((posIndex / 4) * p.TWO_PI);
+                break;
+                
+            case 'corners':
+                // Each in a corner or center
+                switch (posIndex) {
+                    case 0: x = w * 0.2; y = h * 0.2; break; // Top left
+                    case 1: x = w * 0.8; y = h * 0.2; break; // Top right
+                    case 2: x = w * 0.5; y = h * 0.5; break; // Center
+                    case 3: x = w * 0.2; y = h * 0.8; break; // Bottom left
+                    case 4: x = w * 0.8; y = h * 0.8; break; // Bottom right
+                }
+                break;
+                
+            default:
+                // Fallback to random positions
+                x = p.random(w * 0.1, w * 0.9);
+                y = p.random(h * 0.1, h * 0.9);
+        }
+        
+        return { x, y };
     };
 
     /** 

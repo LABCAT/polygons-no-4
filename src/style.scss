@@ -9,6 +9,7 @@
             rgba(12, 219, 245, 1) 89.28%,
             rgba(0, 255, 255, 1) 100.13%);
     --play-icon-color: white;
+    --accent-color: rgba(255, 0, 255, 0.6);
 }
 
 body {
@@ -78,7 +79,7 @@ body {
     background:
         /* Strong magenta glow in bottom right area */
         radial-gradient(ellipse at 70% 85%,
-            rgba(255, 0, 255, 0.6) 0%,
+            var(--accent-color) 0%,
             rgba(255, 0, 128, 0.4) 15%,
             rgba(128, 0, 128, 0.1) 30%,
             transparent 50%),
