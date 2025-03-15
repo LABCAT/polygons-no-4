@@ -1,6 +1,7 @@
 
 import { Midi } from '@tonejs/midi';
 import Polygon from './classes/Polygon'
+import BubblePolygons from './classes/BubblePolygons'
 
 /** 
  * Add your ogg and mid files in the audio director and update these file names
@@ -9,7 +10,7 @@ const audio = new URL("@audio/polygons-no-4.ogg", import.meta.url).href;
 const midi = new URL("@audio/polygons-no-4.mid", import.meta.url).href;
 
 
-const PolygonsNo5 = (p) => {
+const PolygonsNo4 = (p) => {
     /** 
      * Core audio properties
      */
@@ -27,10 +28,8 @@ const PolygonsNo5 = (p) => {
         p.song.onended(() => p.songHasFinished = true);
     };
 
-    /** 
-     * Setup function - Initialize your canvas and any starting properties
-     * This runs once after preload
-     */
+    p.bubbleLayer = null;
+    
     p.setup = () => {
         // Use WebGL for better performance
         p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
@@ -38,24 +37,48 @@ const PolygonsNo5 = (p) => {
         p.noFill();
         p.colorMode(p.HSB);
         p.rectMode(p.CENTER);
-        p.strokeWeight(4);
+
+        p.bubbleLayer = p.createGraphics(p.windowWidth, p.windowHeight);
+        p.bubbleLayer.colorMode(p.HSB);
+        p.bubbleLayer.rectMode(p.CENTER);
+        p.bubbleLayer.noFill();
     };
 
-    /** 
-     * Main draw loop - This is where your animations happen
-     * This runs continuously after setup
-     */
     p.draw = () => {
         if(p.audioLoaded && p.song.isPlaying()){
+            // Clear the main canvas
             p.clear();
             p.translate(-p.width/2, -p.height/2);
             
+            // Draw normal polygons
             if (p.polygons.length > 0) {
+                p.strokeWeight(4);
                 p.polygons.forEach(polygon => {
                     polygon.update();
                     polygon.draw();
                 });
-            } 
+            }
+            
+            // Handle bubble polygons on the secondary layer
+            if (p.bubblePolygons.length > 0) {
+                p.strokeWeight(1);
+                // First remove any inactive bubble polygons
+                p.bubblePolygons = p.bubblePolygons.filter(bubble => bubble.isActive());
+                
+                // Then draw all active ones - save the p5 renderer state
+                const originalCanvas = p._renderer;
+                p._renderer = p.bubbleLayer._renderer;
+                
+                p.bubblePolygons.forEach(bubble => {
+                    bubble.draw();
+                });
+                
+                // Restore the original renderer
+                p._renderer = originalCanvas;
+            }
+            
+            // Draw the bubble layer onto the main canvas
+            p.image(p.bubbleLayer, 0, 0);
         }
     }
 
@@ -68,6 +91,8 @@ const PolygonsNo5 = (p) => {
             console.log('MIDI loaded:', result);
             const track1 = result.tracks[3].notes; // Combinator - Loading Screen
             p.scheduleCueSet(track1, 'executeTrack1');
+            const track2 = result.tracks[4].notes; // Europa - Cinematic Pulse
+            p.scheduleCueSet(track2, 'executeTrack2');
             document.getElementById("loader").classList.add("loading--complete");
             document.getElementById('play-icon').classList.add('fade-in');
             p.audioLoaded = true;
@@ -115,21 +140,46 @@ const PolygonsNo5 = (p) => {
             // Choose a position pattern for this cycle
             p.selectPositionPattern();
         }
-        
+
         const PPQ = 15360;
         const durationMs = (durationTicks / PPQ) * (60000 / p.bpm);
-        
-        // Get sequential index in this set of 5
+
         const index = (currentCue - 1) % 5;
-        const position = p.getPosition(index);
-        
-        const newPolygon = new Polygon(p, position.x, position.y, durationMs, currentCue % 5 === 0);
+        const newPolygon = new Polygon(p, p.width / 2, p.height / 2, durationMs, [0, 4].includes(currentCue % 5));
         
         // Assign shape from the cycle - we still want to use sequential shapes
         // even though positions are randomized
         newPolygon.shape = p.currentCycleShapes[index];
         
         p.polygons.push(newPolygon);
+    }
+
+    p.bubblePolygons = [];
+
+    p.executeTrack2 = (note) => {
+        const { currentCue, midi } = note;
+
+        if (currentCue % 5 === 1) {
+            p.bubbleLayer.clear();
+            p.bubblePolygons = [];
+        }
+            
+        // Get sequential index in this set of 5
+        const index = (currentCue - 1) % 5;
+        const position = p.getPosition(index);
+        
+        // Use shapes from your cycle for consistency
+        const shape = p.currentCycleShapes[index];
+        
+        // Generate hue based on note properties for visual variety
+        // This creates colors that relate to the music
+        const hue = ((midi % 12) * 30 + currentCue * 17) % 360;
+        
+        // Create a new BubblePolygons instance
+        const bubblePolygon = new BubblePolygons(p, position.x, position.y, hue, shape);
+        
+        // Add to array for rendering
+        p.bubblePolygons.push(bubblePolygon);
     };
 
     p.selectPositionPattern = () => {
@@ -225,4 +275,4 @@ const PolygonsNo5 = (p) => {
     }
 };
 
-export default PolygonsNo5;
+export default PolygonsNo4;
