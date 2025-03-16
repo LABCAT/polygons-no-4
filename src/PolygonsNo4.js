@@ -29,6 +29,8 @@ const PolygonsNo4 = (p) => {
     };
 
     p.bubbleLayer = null;
+
+    p.mainPolygonLayer = null;
     
     p.setup = () => {
         // Use WebGL for better performance
@@ -42,6 +44,11 @@ const PolygonsNo4 = (p) => {
         p.bubbleLayer.colorMode(p.HSB);
         p.bubbleLayer.rectMode(p.CENTER);
         p.bubbleLayer.noFill();
+
+        p.mainPolygonLayer = p.createGraphics(p.windowWidth, p.windowHeight);
+        p.mainPolygonLayer.colorMode(p.HSB);
+        p.mainPolygonLayer.rectMode(p.CENTER);
+        p.mainPolygonLayer.noFill();
     };
 
     p.draw = () => {
@@ -49,15 +56,6 @@ const PolygonsNo4 = (p) => {
             // Clear the main canvas
             p.clear();
             p.translate(-p.width/2, -p.height/2);
-            
-            // Draw normal polygons
-            if (p.polygons.length > 0) {
-                p.strokeWeight(4);
-                p.polygons.forEach(polygon => {
-                    polygon.update();
-                    polygon.draw();
-                });
-            }
             
             // Handle bubble polygons on the secondary layer
             if (p.bubblePolygons.length > 0) {
@@ -70,15 +68,32 @@ const PolygonsNo4 = (p) => {
                 p._renderer = p.bubbleLayer._renderer;
                 
                 p.bubblePolygons.forEach(bubble => {
+                    bubble.setOpacity(p.bubbleOpacity);
                     bubble.draw();
                 });
                 
                 // Restore the original renderer
                 p._renderer = originalCanvas;
             }
+
+            // Draw normal polygons
+            if (p.polygons.length > 0) {
+                
+                const originalCanvas = p._renderer;
+                p._renderer = p.mainPolygonLayer._renderer;
+                p.mainPolygonLayer.clear();
+
+                p.strokeWeight(4);
+                p.polygons.forEach(polygon => {
+                    polygon.update();
+                    polygon.draw();
+                });
+
+                p._renderer = originalCanvas;
+            }
             
-            // Draw the bubble layer onto the main canvas
             p.image(p.bubbleLayer, 0, 0);
+            p.image(p.mainPolygonLayer, 0, 0);
         }
     }
 
@@ -93,6 +108,9 @@ const PolygonsNo4 = (p) => {
             p.scheduleCueSet(track1, 'executeTrack1');
             const track2 = result.tracks[4].notes; // Europa - Cinematic Pulse
             p.scheduleCueSet(track2, 'executeTrack2');
+            const controlChanges = Object.assign({},result.tracks[5].controlChanges); // Cinematic Pulse Filter
+            const track3 = controlChanges[Object.keys(controlChanges)[0]];
+            p.scheduleCueSet(track3, 'executeTrack3');
             document.getElementById("loader").classList.add("loading--complete");
             document.getElementById('play-icon').classList.add('fade-in');
             p.audioLoaded = true;
@@ -181,6 +199,10 @@ const PolygonsNo4 = (p) => {
         // Add to array for rendering
         p.bubblePolygons.push(bubblePolygon);
     };
+
+    p.executeTrack3 = (note) => {
+        p.bubbleOpacity = note.value;
+    }
 
     p.selectPositionPattern = () => {
         const patterns = ['grid', 'diagonal', 'wave', 'corners'];

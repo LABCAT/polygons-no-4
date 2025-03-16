@@ -29,7 +29,7 @@ export default class Polygon {
   }
  
   update() {
-    const sizeAdjuster = this.isLast ? 96 : 16;
+    const sizeAdjuster = this.isLast ? 256 : 128;
     this.size += sizeAdjuster;
   }
  
