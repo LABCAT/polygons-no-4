@@ -158,18 +158,111 @@ const PolygonsNo4 = (p) => {
             // Choose a position pattern for this cycle
             p.selectPositionPattern();
         }
-
         const PPQ = 15360;
         const durationMs = (durationTicks / PPQ) * (60000 / p.bpm);
-
         const index = (currentCue - 1) % 5;
-        const newPolygon = new Polygon(p, p.width / 2, p.height / 2, durationMs, [0, 4].includes(currentCue % 5));
         
-        // Assign shape from the cycle - we still want to use sequential shapes
-        // even though positions are randomized
+        // Calculate maxSize based on duration
+        const barDuration = (60000 / p.bpm) * 4; // 4 quarter notes per bar
+        const barCount = durationMs / barDuration;
+        const minSize = 256 + Math.min(256, barCount * 30);
+        const maxSize = 512 + Math.min(256, barCount * 30);
+        const polygonMaxSize = p.random(minSize, maxSize);
+        
+        // Handle first polygon with random position but still keep it away from edges
+        if (p.polygons.length === 0) {
+            const margin = Math.min(polygonMaxSize / 2 + 48, 100); // Safety margin from edges
+            const randomX = p.random(margin, p.width - margin);
+            const randomY = p.random(margin, p.height - margin);
+            
+            const newPolygon = new Polygon(
+                p,
+                randomX,
+                randomY,
+                polygonMaxSize,
+                durationMs
+            );
+            newPolygon.shape = p.currentCycleShapes[index];
+            p.polygons.push(newPolygon);
+            return;
+        }
+        
+        // Generate a position using circle packing
+        const position = findSuitablePosition(p, polygonMaxSize);
+        
+        const newPolygon = new Polygon(
+            p,
+            position.x,
+            position.y,
+            polygonMaxSize,
+            durationMs
+        );
+        
+        // Assign shape from the cycle
         newPolygon.shape = p.currentCycleShapes[index];
         
         p.polygons.push(newPolygon);
+    };
+
+    // Circle packing helper function
+    const findSuitablePosition = (p, maxSize) => {
+        const MAX_ATTEMPTS = 100; // Increased from 50
+        
+        // Calculate the effective radius including safety margin
+        const safetyMargin = 16 * 3; // The drawShape uses i * 16 with i ranging from -3 to 3
+        const effectiveRadius = maxSize / 2 + safetyMargin;
+        
+        // Make sure we don't go outside the canvas
+        const margin = Math.min(effectiveRadius, 100); // Cap the margin to prevent issues on small screens
+        
+        // Generate a default position with some padding from edges
+        let bestPosition = {
+            x: p.random(margin, p.width - margin),
+            y: p.random(margin, p.height - margin)
+        };
+        
+        // If there are no polygons yet, return a position in the center
+        if (p.polygons.length === 0) {
+            return { x: p.width / 2, y: p.height / 2 };
+        }
+        
+        // Start with a negative best distance to ensure we at least pick something
+        let bestDistance = -Infinity;
+        
+        // Try multiple positions and pick the one with maximum distance to other polygons
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+            // Generate position within safe bounds
+            const testX = p.random(margin, p.width - margin);
+            const testY = p.random(margin, p.height - margin);
+            
+            // Calculate minimum distance to any existing polygon
+            let minDistance = Infinity;
+            
+            for (const polygon of p.polygons) {
+                // Center-to-center distance
+                const distance = p.dist(testX, testY, polygon.x, polygon.y);
+                
+                // Edge-to-edge distance (subtract the radii)
+                const effectiveDistance = distance - effectiveRadius - (polygon.maxSize / 2 + safetyMargin);
+                
+                minDistance = Math.min(minDistance, effectiveDistance);
+            }
+            
+            // If this position is better than our current best, update it
+            if (minDistance > bestDistance) {
+                bestDistance = minDistance;
+                bestPosition = { x: testX, y: testY };
+            }
+            
+            // If we found a position with enough separation, stop early
+            // Even a small positive value means the polygons won't overlap
+            if (bestDistance > 0) break;
+        }
+        
+        // Debug output to see what's happening
+        console.log(`Found position with distance: ${bestDistance}`);
+        
+        return bestPosition;
     }
 
     p.bubblePolygons = [];
