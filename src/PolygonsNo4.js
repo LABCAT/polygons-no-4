@@ -68,7 +68,7 @@ const PolygonsNo4 = (p) => {
                 p._renderer = p.bubbleLayer._renderer;
                 
                 p.bubblePolygons.forEach(bubble => {
-                    bubble.setOpacity(p.bubbleOpacity);
+                    bubble.setOpacity(p.map(p.bubbleOpacity, 0.5, 1, 0.2, 1));
                     bubble.draw();
                 });
                 
