@@ -15,7 +15,7 @@ export default class Polygon {
     this.growthPerFrame = 0;
     
     this.colourGenerator = new ColorGenerator(p, 'bright');
-    this.colours = this.colourGenerator.getOpacityVariations(4);
+    this.colours = this.colourGenerator.getOpacityVariations(3);
     
     // Select a random shape
     const shapes = ['equilateral', 'rect', 'pentagon', 'hexagon', 'octagon'];
@@ -49,14 +49,14 @@ export default class Polygon {
   
   drawShape(size) {
     if (size <= 0) return;
-    // Draw 7 shapes with varying opacity (from -3 to +3)
-    for (let i = -3; i <= 3; i++) {
-      const shapeSize = size + (i * 16);
+    // Draw 7 shapes with varying opacity (from -2 to +2)
+    for (let i = -2; i <= 2; i++) {
+      const shapeSize = size + (i * 12);
       if (shapeSize <= 0) continue;
       
       // Calculate color index based on distance from center (0)
       // This creates a gradient effect with stronger color in the middle
-      const colorIndex = 3 - Math.abs(i);
+      const colorIndex = 2 - Math.abs(i);
       
       this.p.stroke(this.colours[colorIndex]);
       this.p[this.shape](this.x, this.y, shapeSize, shapeSize);

@@ -10,9 +10,11 @@
             rgba(0, 255, 255, 1) 100.13%);
     --play-icon-color: white;
     --accent-color: rgba(255, 0, 255, 0.6);
+    --accent-color-fade1: rgba(255, 0, 128, 0.4);
+    --accent-color-fade2: rgba(128, 0, 128, 0.1);
 }
 
-body {
+body { 
     margin: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -78,11 +80,14 @@ body {
     z-index: -1;
     background:
         /* Strong magenta glow in bottom right area */
-        radial-gradient(ellipse at 70% 85%,
+        radial-gradient(
+            ellipse at 70% 85%,
             var(--accent-color) 0%,
-            rgba(255, 0, 128, 0.4) 15%,
-            rgba(128, 0, 128, 0.1) 30%,
-            transparent 50%),
+            var(--accent-color-fade1) 15%,
+            var(--accent-color-fade2) 40%,
+            transparent 60%,
+            transparent 80%
+        ),
         /* Secondary subtle glow in mid-left */
         radial-gradient(circle at 25% 55%,
             rgba(100, 0, 200, 0.3) 0%,

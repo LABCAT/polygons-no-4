@@ -68,7 +68,7 @@ const PolygonsNo4 = (p) => {
                 p._renderer = p.bubbleLayer._renderer;
                 
                 p.bubblePolygons.forEach(bubble => {
-                    bubble.setOpacity(p.map(p.bubbleOpacity, 0.5, 1, 0.2, 1));
+                    bubble.setOpacity(p.map(p.bubbleOpacity, 0.5, 1, 0, 0.9));
                     bubble.draw();
                 });
                 
@@ -140,55 +140,58 @@ const PolygonsNo4 = (p) => {
 
     p.polygons = [];
 
-    // Add these variables at the class level
     p.currentCycleShapes = [];
     p.positionPattern = null;
     p.positionOrder = [0, 1, 2, 3, 4];
+    p.hueOffset = 0;
 
     p.executeTrack1 = (note) => {
         const { currentCue, durationTicks } = note;
         
         if (currentCue % 5 === 1) {
             p.polygons = [];
-            
-            // Shuffle shapes for this cycle
             const shapes = ['equilateral', 'rect', 'pentagon', 'hexagon', 'octagon'];
             p.currentCycleShapes = [...shapes].sort(() => p.random(-1, 1));
-            
-            // Choose a position pattern for this cycle
             p.selectPositionPattern();
+
+            if(currentCue > 1) {
+                p.hueOffset = (p.hueOffset + 40) % 360;
+                const newHue = p.hueOffset;
+                
+                // Update CSS custom properties
+                document.documentElement.style.setProperty('--accent-color', `hsla(${newHue}, 100%, 50%, 0.6)`);
+                document.documentElement.style.setProperty('--accent-color-fade1', `hsla(${newHue}, 100%, 50%, 0.4)`);
+                document.documentElement.style.setProperty('--accent-color-fade2', `hsla(${newHue}, 100%, 50%, 0.1)`);
+            }
         }
+        
         const PPQ = 15360;
         const durationMs = (durationTicks / PPQ) * (60000 / p.bpm);
         const index = (currentCue - 1) % 5;
         
-        // Calculate maxSize based on duration
-        const barDuration = (60000 / p.bpm) * 4; // 4 quarter notes per bar
+        // Calculate size with pattern-based limitations
+        const barDuration = (60000 / p.bpm) * 4;
         const barCount = durationMs / barDuration;
-        const minSize = 256 + Math.min(256, barCount * 30);
-        const maxSize = 512 + Math.min(256, barCount * 30);
+        
+        // Base size calculation
+        // Base size calculation - screen-responsive
+        let baseSize = Math.min(p.width, p.height) * 0.3;
+        let minSize = baseSize + Math.min(baseSize, barCount * 30);
+        let maxSize = baseSize * 1.5 + Math.min(baseSize, barCount * 30);
+
+        // Reduce size based on pattern to prevent overlaps
+        if (p.positionPattern === 'grid' || p.positionPattern === 'corners') {
+            minSize *= 0.6;
+            maxSize *= 0.6;
+        } else if (p.positionPattern === 'diagonal' || p.positionPattern === 'wave') {
+            minSize *= 0.7;
+            maxSize *= 0.7;
+        }
+
         const polygonMaxSize = p.random(minSize, maxSize);
         
-        // Handle first polygon with random position but still keep it away from edges
-        if (p.polygons.length === 0) {
-            const margin = Math.min(polygonMaxSize / 2 + 48, 100); // Safety margin from edges
-            const randomX = p.random(margin, p.width - margin);
-            const randomY = p.random(margin, p.height - margin);
-            
-            const newPolygon = new Polygon(
-                p,
-                randomX,
-                randomY,
-                polygonMaxSize,
-                durationMs
-            );
-            newPolygon.shape = p.currentCycleShapes[index];
-            p.polygons.push(newPolygon);
-            return;
-        }
-        
-        // Generate a position using circle packing
-        const position = findSuitablePosition(p, polygonMaxSize);
+        // Use original position
+        const position = p.getComplementaryPosition(index);
         
         const newPolygon = new Polygon(
             p,
@@ -198,72 +201,9 @@ const PolygonsNo4 = (p) => {
             durationMs
         );
         
-        // Assign shape from the cycle
         newPolygon.shape = p.currentCycleShapes[index];
-        
         p.polygons.push(newPolygon);
     };
-
-    // Circle packing helper function
-    const findSuitablePosition = (p, maxSize) => {
-        const MAX_ATTEMPTS = 100; // Increased from 50
-        
-        // Calculate the effective radius including safety margin
-        const safetyMargin = 16 * 3; // The drawShape uses i * 16 with i ranging from -3 to 3
-        const effectiveRadius = maxSize / 2 + safetyMargin;
-        
-        // Make sure we don't go outside the canvas
-        const margin = Math.min(effectiveRadius, 100); // Cap the margin to prevent issues on small screens
-        
-        // Generate a default position with some padding from edges
-        let bestPosition = {
-            x: p.random(margin, p.width - margin),
-            y: p.random(margin, p.height - margin)
-        };
-        
-        // If there are no polygons yet, return a position in the center
-        if (p.polygons.length === 0) {
-            return { x: p.width / 2, y: p.height / 2 };
-        }
-        
-        // Start with a negative best distance to ensure we at least pick something
-        let bestDistance = -Infinity;
-        
-        // Try multiple positions and pick the one with maximum distance to other polygons
-        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-            // Generate position within safe bounds
-            const testX = p.random(margin, p.width - margin);
-            const testY = p.random(margin, p.height - margin);
-            
-            // Calculate minimum distance to any existing polygon
-            let minDistance = Infinity;
-            
-            for (const polygon of p.polygons) {
-                // Center-to-center distance
-                const distance = p.dist(testX, testY, polygon.x, polygon.y);
-                
-                // Edge-to-edge distance (subtract the radii)
-                const effectiveDistance = distance - effectiveRadius - (polygon.maxSize / 2 + safetyMargin);
-                
-                minDistance = Math.min(minDistance, effectiveDistance);
-            }
-            
-            // If this position is better than our current best, update it
-            if (minDistance > bestDistance) {
-                bestDistance = minDistance;
-                bestPosition = { x: testX, y: testY };
-            }
-            
-            // If we found a position with enough separation, stop early
-            // Even a small positive value means the polygons won't overlap
-            if (bestDistance > 0) break;
-        }
-        
-        // Debug output to see what's happening
-        console.log(`Found position with distance: ${bestDistance}`);
-        
-        return bestPosition;
-    }
 
     p.bubblePolygons = [];
 
@@ -298,7 +238,7 @@ const PolygonsNo4 = (p) => {
     }
 
     p.selectPositionPattern = () => {
-        const patterns = ['grid', 'diagonal', 'wave', 'corners'];
+        const patterns = ['grid', 'diagonal', 'wave', 'invertedWave', 'corners'];
         p.positionPattern = patterns[Math.floor(p.random() * patterns.length)];
         
         // Generate random order for positions
@@ -306,68 +246,110 @@ const PolygonsNo4 = (p) => {
     };
 
     p.getPosition = (index) => {
-        // Use the randomized position order
         const posIndex = p.positionOrder[index];
-        
         const w = p.width;
         const h = p.height;
         let x, y;
         
         switch (p.positionPattern) {
-            case 'circle':
-                // Positions in a circle around center
-                const angle = (posIndex / 5) * p.TWO_PI;
-                const radius = Math.min(w, h) * 0.3;
-                x = w/2 + radius * Math.cos(angle);
-                y = h/2 + radius * Math.sin(angle);
-                break;
-                
             case 'grid':
-                // 3x2 grid with centered second row
                 if (posIndex < 3) {
-                    // First row - 3 positions
-                    x = w * (0.25 + posIndex * 0.25);
-                    y = h * 0.33;
+                    x = w * (0.15 + posIndex * 0.35); // More spread out (0.15, 0.5, 0.85)
+                    y = h * 0.28; // Moved higher
                 } else {
-                    // Second row - 2 positions centered
-                    x = w * (0.33 + (posIndex - 3) * 0.33);
-                    y = h * 0.67;
+                    x = w * (0.25 + (posIndex - 3) * 0.5); // More spread out (0.25, 0.75)
+                    y = h * 0.72; // Moved lower
                 }
                 break;
                 
             case 'diagonal':
-                // Diagonal from top-left to bottom-right
-                const t = posIndex / 4;
-                x = w * 0.1 + (w * 0.8 * t);
-                y = h * 0.1 + (h * 0.8 * t);
+                const tDiag = posIndex / 4;
+                x = w * 0.1 + (w * 0.8 * tDiag);
+                y = h * 0.1 + (h * 0.8 * tDiag);
                 break;
                 
             case 'wave':
-                // Horizontal wave pattern
                 x = (posIndex + 0.5) * (w / 5);
                 const amplitude = h * 0.25;
                 y = h/2 + amplitude * Math.sin((posIndex / 4) * p.TWO_PI);
                 break;
+
+            case 'invertedWave':
+                x = (posIndex + 0.5) * (w / 5);
+                const amplitudeInv = h * 0.25;
+                y = h/2 + amplitudeInv * Math.cos((posIndex / 4) * p.TWO_PI);
+                break;
                 
             case 'corners':
-                // Each in a corner or center
                 switch (posIndex) {
-                    case 0: x = w * 0.2; y = h * 0.2; break; // Top left
-                    case 1: x = w * 0.8; y = h * 0.2; break; // Top right
-                    case 2: x = w * 0.5; y = h * 0.5; break; // Center
-                    case 3: x = w * 0.2; y = h * 0.8; break; // Bottom left
-                    case 4: x = w * 0.8; y = h * 0.8; break; // Bottom right
+                    case 0: x = w * 0.15; y = h * 0.15; break; // More toward corner
+                    case 1: x = w * 0.85; y = h * 0.15; break; // More toward corner
+                    case 2: x = w * 0.5; y = h * 0.5; break; // Center stays the same
+                    case 3: x = w * 0.15; y = h * 0.85; break; // More toward corner
+                    case 4: x = w * 0.85; y = h * 0.85; break; // More toward corner
                 }
                 break;
                 
             default:
-                // Fallback to random positions
                 x = p.random(w * 0.1, w * 0.9);
                 y = p.random(h * 0.1, h * 0.9);
         }
         
         return { x, y };
     };
+
+    p.getComplementaryPosition = (index) => {
+        const posIndex = p.positionOrder[index];
+        const w = p.width;
+        const h = p.height;
+        let x, y;
+        
+        switch (p.positionPattern) {
+            case 'grid':
+                if (posIndex < 2) {
+                    x = w * (0.25 + posIndex * 0.5); // More spread out (0.25, 0.75)
+                    y = h * 0.28; // Matched height
+                } else {
+                    x = w * (0.15 + (posIndex - 2) * 0.35); // More spread out (0.15, 0.5, 0.85)
+                    y = h * 0.72; // Matched height
+                }
+                break;
+                
+            case 'diagonal':
+                const tDiag = posIndex / 4;
+                x = w * 0.9 - (w * 0.8 * tDiag);
+                y = h * 0.1 + (h * 0.8 * tDiag);
+                break;
+                
+            case 'wave':
+                x = (posIndex + 0.5) * (w / 5);
+                const amplitudeWave = h * 0.25;
+                y = h/2 - amplitudeWave * Math.sin((posIndex / 4) * p.TWO_PI);
+                break;
+                
+            case 'invertedWave':
+                x = (posIndex + 0.5) * (w / 5);
+                const amplitudeInvWave = h * 0.25;
+                y = h/2 - amplitudeInvWave * Math.cos((posIndex / 4) * p.TWO_PI);
+                break;
+                
+            case 'corners':
+                switch (posIndex) {
+                    case 0: x = w * 0.5; y = h * 0.15; break;
+                    case 1: x = w * 0.15; y = h * 0.5; break;
+                    case 2: x = w * 0.5; y = h * 0.5; break;
+                    case 3: x = w * 0.85; y = h * 0.5; break;
+                    case 4: x = w * 0.5; y = h * 0.85; break;
+                }
+                break;
+                
+            default:
+                x = p.random(w * 0.1, w * 0.9);
+                y = p.random(h * 0.1, h * 0.9);
+        }
+        
+        return { x, y };
+    }
 
     /** 
      * Handle mouse/touch interaction
